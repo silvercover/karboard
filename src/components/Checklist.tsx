@@ -24,8 +24,30 @@ export function Checklist({ items, onItemsChange }: ChecklistProps) {
     };
 
     onItemsChange([...items, newItem]);
+    
+    // Clear the input and prepare for next item
     setNewItemText('');
-    setIsAddingItem(false);
+    // Keep the input focused for continuous adding
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (newItemText.trim()) {
+        addItem();
+        // Input stays focused and ready for next item
+      }
+    } else if (e.key === 'Escape') {
+      setIsAddingItem(false);
+      setNewItemText('');
+    }
+  };
+
+  const handleInputBlur = () => {
+    // Only close if there's no text
+    if (!newItemText.trim()) {
+      setIsAddingItem(false);
+    }
   };
 
   const toggleItem = (itemId: string) => {
@@ -87,13 +109,8 @@ export function Checklist({ items, onItemsChange }: ChecklistProps) {
             placeholder={t('checklist.item.placeholder')}
             value={newItemText}
             onChange={(e) => setNewItemText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') addItem();
-              if (e.key === 'Escape') {
-                setIsAddingItem(false);
-                setNewItemText('');
-              }
-            }}
+            onKeyDown={handleKeyDown}
+            onBlur={handleInputBlur}
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none text-sm"
             autoFocus
           />

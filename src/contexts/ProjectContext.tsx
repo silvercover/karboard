@@ -94,6 +94,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       ownerId: user.id,
       members: [{
         userId: user.id,
+        userName: user.name,
         role: 'admin',
         permissions: {
           canView: true,
@@ -173,6 +174,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           ...p,
           members: [...p.members, {
             userId: user.id,
+            userName: user.name,
             role: 'member' as const,
             permissions: {
               canView: true,

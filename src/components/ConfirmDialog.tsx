@@ -51,7 +51,7 @@ export function ConfirmDialog({
   const styles = getTypeStyles();
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-auto my-auto">
         <div className="p-6">
           <div className="flex items-center space-x-4 rtl:space-x-reverse mb-4">

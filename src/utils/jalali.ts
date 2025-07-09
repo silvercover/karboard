@@ -124,8 +124,19 @@ export function getDaysInJalaliMonth(year: number, month: number): number {
 
 export function formatJalaliDate(date: Date, language: 'en' | 'fa'): string {
   if (language === 'fa') {
-    const jalali = gregorianToJalali(date);
-    return `${jalali.day} ${PERSIAN_MONTHS[jalali.month - 1]} ${jalali.year}`;
+    try {
+      // Use Intl.DateTimeFormat for proper Persian calendar formatting
+      const formatter = new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      return formatter.format(date);
+    } catch (error) {
+      // Fallback to manual conversion if Intl fails
+      const jalali = gregorianToJalali(date);
+      return `${jalali.day} ${PERSIAN_MONTHS[jalali.month - 1]} ${jalali.year}`;
+    }
   } else {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',

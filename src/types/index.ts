@@ -9,15 +9,16 @@ export interface FileAttachment {
   name: string;
   size: number;
   type: string;
-  url: string;
+  url: string; // This will be the IndexedDB reference ID for uploaded files
   uploadProgress?: number;
+  isExternal?: boolean; // Flag to indicate if this is an external URL vs IndexedDB reference
 }
 
 export interface Comment {
   id: string;
   userId: string;
   userName: string;
-  userAvatar?: string;
+  userAvatarRef?: string; // Reference to IndexedDB avatar
   text: string;
   parentId?: string; // For reply functionality
   createdAt: Date;
@@ -63,12 +64,13 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  avatar?: string;
+  avatarRef?: string; // Reference to IndexedDB avatar instead of direct data URL
   createdAt: Date;
 }
 
 export interface ProjectMember {
   userId: string;
+  userName?: string;
   role: 'admin' | 'member';
   permissions: {
     canView: boolean;

@@ -8,7 +8,7 @@ import { Checklist } from './Checklist';
 import { FileUpload } from './FileUpload';
 import { MarkdownEditor } from './MarkdownEditor';
 import { Comments } from './Comments';
-import { saveDraft, loadDraft, clearDraft, hasDraft } from '../utils/draftStorage';
+import { saveDraft, loadDraft, clearDraft, hasDraft, generateNewCardId } from '../utils/draftStorage';
 
 interface CardModalProps {
   card?: Card;
@@ -19,70 +19,71 @@ interface CardModalProps {
 
 export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
   const { t, language } = useLanguage();
-  const [title, setTitle] = useState(card?.title || '');
-  const [description, setDescription] = useState(card?.description || '');
-  const [dueDate, setDueDate] = useState<Date | undefined>(card?.dueDate);
-  const [labels, setLabels] = useState<string[]>(card?.labels || []);
-  const [checklist, setChecklist] = useState(card?.checklist || []);
-  const [attachments, setAttachments] = useState(card?.attachments || []);
-  const [comments, setComments] = useState(card?.comments || []);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState<Date | undefined>(undefined);
+  const [labels, setLabels] = useState<string[]>([]);
+  const [checklist, setChecklist] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [comments, setComments] = useState([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showDraftNotice, setShowDraftNotice] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
   const draftTimeoutRef = useRef<NodeJS.Timeout>();
   
-  const cardId = card?.id || 'new-card';
+  // Generate unique ID for each card modal instance
+  const cardId = card?.id || generateNewCardId();
 
   const labelColors = [
     'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-green-500',
     'bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-gray-500'
   ];
 
-  // Load initial data and check for drafts
+  // Load initial data and check for drafts - only when modal opens
   useEffect(() => {
-    if (isOpen) {
-      if (card) {
-        // Editing existing card
-        setTitle(card.title);
-        setDescription(card.description || '');
-        setDueDate(card.dueDate);
-        setLabels(card.labels);
-        setChecklist(card.checklist);
-        setAttachments(card.attachments);
-        setComments(card.comments);
-        
-        // Check for draft
-        const draft = loadDraft(cardId);
-        if (draft) {
-          setShowDraftNotice(true);
-        }
-      } else {
-        // Creating new card
-        setTitle('');
-        setDescription('');
-        setDueDate(undefined);
-        setLabels([]);
-        setChecklist([]);
-        setAttachments([]);
-        setComments([]);
-        
-        // Check for draft for new cards
-        const draft = loadDraft(cardId);
-        if (draft) {
-          setTitle(draft.title || '');
-          setDescription(draft.description || '');
-          setDueDate(draft.dueDate);
-          setLabels(draft.labels || []);
-          setChecklist(draft.checklist || []);
-          setAttachments(draft.attachments || []);
-          setComments(draft.comments || []);
-          setShowDraftNotice(true);
-        }
+    if (!isOpen) return;
+
+    if (card) {
+      // Editing existing card
+      setTitle(card.title);
+      setDescription(card.description || '');
+      setDueDate(card.dueDate);
+      setLabels(card.labels);
+      setChecklist(card.checklist);
+      setAttachments(card.attachments);
+      setComments(card.comments);
+      
+      // Check for draft only for existing cards
+      const draft = loadDraft(cardId);
+      if (draft) {
+        setShowDraftNotice(true);
       }
-      setHasUnsavedChanges(false);
+    } else {
+      // Creating new card - reset everything
+      setTitle('');
+      setDescription('');
+      setDueDate(undefined);
+      setLabels([]);
+      setChecklist([]);
+      setAttachments([]);
+      setComments([]);
+      setShowDraftNotice(false);
+      
+      // Check for draft for new cards with the unique ID
+      const draft = loadDraft(cardId);
+      if (draft) {
+        setTitle(draft.title || '');
+        setDescription(draft.description || '');
+        setDueDate(draft.dueDate);
+        setLabels(draft.labels || []);
+        setChecklist(draft.checklist || []);
+        setAttachments(draft.attachments || []);
+        setComments(draft.comments || []);
+        setShowDraftNotice(true);
+      }
     }
-  }, [card, isOpen, cardId]);
+    setHasUnsavedChanges(false);
+  }, [isOpen]); // Only depend on isOpen
 
   // Save draft when content changes
   const saveDraftData = () => {
@@ -108,35 +109,35 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
     }, 1000); // Save draft after 1 second of inactivity
   };
 
-  // Track changes for unsaved indicator
+  // Track changes for unsaved indicator - separate useEffect
   useEffect(() => {
-    if (isOpen) {
-      const hasChanges = card ? (
-        title !== card.title ||
-        description !== (card.description || '') ||
-        dueDate?.getTime() !== card.dueDate?.getTime() ||
-        JSON.stringify(labels) !== JSON.stringify(card.labels) ||
-        JSON.stringify(checklist) !== JSON.stringify(card.checklist) ||
-        JSON.stringify(attachments) !== JSON.stringify(card.attachments) ||
-        JSON.stringify(comments) !== JSON.stringify(card.comments)
-      ) : (
-        title.trim() !== '' ||
-        description.trim() !== '' ||
-        dueDate !== undefined ||
-        labels.length > 0 ||
-        checklist.length > 0 ||
-        attachments.length > 0 ||
-        comments.length > 0
-      );
-      
-      setHasUnsavedChanges(hasChanges);
-      
-      // Save draft when there are changes
-      if (hasChanges) {
-        saveDraftData();
-      }
+    if (!isOpen) return;
+
+    const hasChanges = card ? (
+      title !== card.title ||
+      description !== (card.description || '') ||
+      dueDate?.getTime() !== card.dueDate?.getTime() ||
+      JSON.stringify(labels) !== JSON.stringify(card.labels) ||
+      JSON.stringify(checklist) !== JSON.stringify(card.checklist) ||
+      JSON.stringify(attachments) !== JSON.stringify(card.attachments) ||
+      JSON.stringify(comments) !== JSON.stringify(card.comments)
+    ) : (
+      title.trim() !== '' ||
+      description.trim() !== '' ||
+      dueDate !== undefined ||
+      labels.length > 0 ||
+      checklist.length > 0 ||
+      attachments.length > 0 ||
+      comments.length > 0
+    );
+    
+    setHasUnsavedChanges(hasChanges);
+    
+    // Save draft when there are changes
+    if (hasChanges) {
+      saveDraftData();
     }
-  }, [title, description, dueDate, labels, checklist, attachments, comments, card, isOpen]);
+  }, [title, description, dueDate, labels, checklist, attachments, comments, isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -247,6 +248,7 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
 
   const removeDueDate = () => {
     setDueDate(undefined);
+    setShowDatePicker(false);
   };
 
   const getDueDateStatus = () => {
@@ -270,10 +272,10 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
   const completedItems = checklist.filter(item => item.completed).length;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[9999] p-4">
       <div 
         ref={modalRef}
-        className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col mx-auto my-auto"
+        className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col mx-auto my-auto sm:max-w-4xl md:max-w-5xl lg:max-w-6xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -326,16 +328,16 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
         )}
 
         <div className="flex-1 overflow-y-auto">
-          <div className="flex">
+          <div className="flex flex-col lg:flex-row">
             {/* Main content - 75% */}
-            <div className="flex-1 p-6 space-y-6" style={{ width: '75%' }}>
+            <div className="flex-1 p-4 sm:p-6 space-y-4 sm:space-y-6 lg:w-3/4">
               <div>
                 <input
                   type="text"
                   placeholder={t('card.title.placeholder')}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full text-lg font-medium border-none outline-none resize-none bg-gray-50 rounded-lg p-3 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                  className="w-full text-base sm:text-lg font-medium border-none outline-none resize-none bg-gray-50 rounded-lg p-3 focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all duration-200 placeholder:text-sm"
                   autoFocus
                 />
               </div>
@@ -368,26 +370,18 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
             </div>
 
             {/* Sidebar - 25% */}
-            <div className="border-l border-gray-200 p-6 space-y-6" style={{ width: '25%' }}>
-              <div className="relative">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowDatePicker(!showDatePicker);
-                  }}
-                  className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 w-full"
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span className="text-sm">{t('card.due.date')}</span>
-                </button>
+            <div className="border-t lg:border-t-0 lg:border-l border-gray-200 p-4 sm:p-6 space-y-4 sm:space-y-6 lg:w-1/4">
+              <div>
+                <JalaliDatePickerWrapper
+                  value={dueDate}
+                  onChange={setDueDate}
+                  placeholder={t('card.due.date')}
+                />
                 
                 {dueDate && (
-                  <div className="mt-2 space-y-2">
-                    <div className="text-sm text-gray-600">
-                      {formatJalaliDate(dueDate, language.code)}
-                    </div>
+                  <div className="mt-2">
                     <button
-                      onClick={removeDueDate}
+                      onClick={() => setDueDate(undefined)}
                       className="text-xs text-red-600 hover:text-red-700 transition-colors"
                     >
                       {t('card.due.remove')}
@@ -395,16 +389,6 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
                   </div>
                 )}
                 
-                {showDatePicker && (
-                  <JalaliDatePickerWrapper
-                    value={dueDate}
-                    onChange={(date) => {
-                      setDueDate(date);
-                      setShowDatePicker(false);
-                    }}
-                    onClose={() => setShowDatePicker(false)}
-                  />
-                )}
 
                 {dueDate && dueDateStatus && (
                   <div className={`flex items-center space-x-1 rtl:space-x-reverse px-3 py-1 rounded-full text-sm mt-2 ${dueDateStatus.color}`}>
@@ -473,6 +457,7 @@ export function CardModal({ card, isOpen, onClose, onSave }: CardModalProps) {
           </div>
         </div>
       </div>
+
     </div>
   );
 }

@@ -12,7 +12,7 @@ interface HeaderProps {
 
 export function Header({ searchTerm, onSearchChange }: HeaderProps) {
   const { language, setLanguage, t } = useLanguage();
-  const { user, logout } = useAuth();
+  const { user, userAvatar, logout } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showEmailSettings, setShowEmailSettings] = useState(false);
@@ -61,9 +61,9 @@ export function Header({ searchTerm, onSearchChange }: HeaderProps) {
               onClick={() => setShowUserMenu(!showUserMenu)}
               className="flex items-center space-x-2 rtl:space-x-reverse p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              {user?.avatar ? (
+              {userAvatar ? (
                 <img
-                  src={user.avatar}
+                  src={userAvatar}
                   alt="Profile"
                   className="w-8 h-8 rounded-full object-cover"
                 />
@@ -75,7 +75,7 @@ export function Header({ searchTerm, onSearchChange }: HeaderProps) {
             </button>
 
             {showUserMenu && (
-              <div className="absolute top-full right-0 rtl:left-0 rtl:right-auto mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 min-w-[180px]">
+              <div className="absolute top-full right-0 rtl:left-0 rtl:right-auto mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-[10001] min-w-[180px]">
                 <div className="px-4 py-2 border-b border-gray-200">
                   <div className="font-medium text-gray-800">{user?.name}</div>
                   <div className="text-sm text-gray-600">{user?.email}</div>

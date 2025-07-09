@@ -1,138 +1,93 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
+import { Calendar } from 'lucide-react';
+import DatePicker from 'react-multi-date-picker';
+import persian from 'react-date-object/calendars/persian';
+import gregorian from 'react-date-object/calendars/gregorian';
+import persian_fa from 'react-date-object/locales/persian_fa';
+import gregorian_en from 'react-date-object/locales/gregorian_en';
+import DateObject from 'react-date-object';
 import { useLanguage } from '../contexts/LanguageContext';
 
 interface JalaliDatePickerWrapperProps {
   value?: Date;
-  onChange: (date: Date) => void;
-  onClose: () => void;
+  onChange: (date: Date | undefined) => void;
+  placeholder?: string;
 }
 
-declare global {
-  interface Window {
-    jalaliDatepicker: {
-      startWatch: (options?: any) => void;
-      show: (input: HTMLInputElement) => void;
-      hide: () => void;
-      updateOptions: (options: any) => void;
-    };
-  }
-}
-
-export function JalaliDatePickerWrapper({ value, onChange, onClose }: JalaliDatePickerWrapperProps) {
+export function JalaliDatePickerWrapper({ value, onChange, placeholder }: JalaliDatePickerWrapperProps) {
   const { language } = useLanguage();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const datePickerRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (!inputRef.current || !window.jalaliDatepicker) return;
-
-    const input = inputRef.current;
-    
-    // Set initial value
-    if (value) {
-      if (language.code === 'fa') {
-        // For Persian, format as Jalali date
-        const jalaliDate = new Intl.DateTimeFormat('fa-IR', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit'
-        }).format(value);
-        input.value = jalaliDate;
-      } else {
-        // For English, format as Gregorian date
-        input.value = value.toISOString().split('T')[0];
-      }
+  // تنظیمات تقویم بر اساس زبان
+  const getCalendarConfig = () => {
+    if (language.code === 'fa') {
+      return {
+        calendar: persian,
+        locale: persian_fa
+      };
+    } else {
+      return {
+        calendar: gregorian,
+        locale: gregorian_en
+      };
     }
+  };
 
-    // Configure options based on language
-    const options = {
-      locale: language.code === 'fa' ? 'fa' : 'en',
-      format: language.code === 'fa' ? 'YYYY/MM/DD' : 'YYYY-MM-DD',
-      calendar: language.code === 'fa' ? 'persian' : 'gregorian',
-      onSelect: (selectedDate: string) => {
-        if (selectedDate) {
-          let date: Date;
-          if (language.code === 'fa') {
-            // Parse Persian date
-            const parts = selectedDate.split('/');
-            if (parts.length === 3) {
-              // Convert Persian date to Gregorian
-              const persianYear = parseInt(parts[0]);
-              const persianMonth = parseInt(parts[1]);
-              const persianDay = parseInt(parts[2]);
-              
-              // Simple conversion (you might want to use a proper library)
-              const gregorianYear = persianYear + 621;
-              date = new Date(gregorianYear, persianMonth - 1, persianDay);
-            } else {
-              date = new Date();
-            }
-          } else {
-            date = new Date(selectedDate);
-          }
-          onChange(date);
-          onClose();
-        }
-      }
-    };
-
-    // Initialize the date picker
-    window.jalaliDatepicker.updateOptions(options);
-    window.jalaliDatepicker.startWatch();
+  // مقدار اولیه
+  const getInitialValue = () => {
+    if (!value) {
+      return null;
+    }
     
-    // Show the picker
-    setTimeout(() => {
-      window.jalaliDatepicker.show(input);
-    }, 100);
+    const config = getCalendarConfig();
+    return new DateObject({
+      date: value,
+      calendar: config.calendar,
+      locale: config.locale
+    });
+  };
 
-    // Handle click outside - but exclude modal backdrop
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      
-      // Don't close if clicking on modal backdrop or modal content
-      if (target.classList.contains('fixed') && target.classList.contains('inset-0')) {
-        return;
-      }
-      
-      // Don't close if clicking inside the date picker
-      if (containerRef.current && containerRef.current.contains(target)) {
-        return;
-      }
-      
-      // Don't close if clicking on date picker elements
-      if (target.closest('.jdp-container') || target.closest('[data-jdp]')) {
-        return;
-      }
-      
-      // Only close if clicking outside the date picker area
-      if (containerRef.current && !containerRef.current.contains(target)) {
-        onClose();
-      }
-    };
+  const handleDateChange = (selectedDate: any) => {
+    if (selectedDate && selectedDate.isValid) {
+      const jsDate = selectedDate.toDate();
+      onChange(jsDate);
+    } else {
+      onChange(undefined);
+    }
+  };
 
-    // Use capture phase to handle clicks before they bubble up
-    document.addEventListener('mousedown', handleClickOutside, true);
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside, true);
-      window.jalaliDatepicker.hide();
-    };
-  }, [language.code, value, onChange, onClose]);
+  const config = getCalendarConfig();
+  const initialValue = getInitialValue();
 
   return (
-    <div 
-      ref={containerRef}
-      className="absolute top-full left-0 rtl:right-0 rtl:left-auto mt-2 z-[70]"
-      onClick={(e) => e.stopPropagation()} // Prevent event bubbling
-    >
-      <input
-        ref={inputRef}
-        data-jdp
-        type="text"
-        className="w-64 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-        placeholder={language.code === 'fa' ? 'تاریخ را انتخاب کنید' : 'Select date'}
-        readOnly
-        onClick={(e) => e.stopPropagation()} // Prevent modal close
+    <div className="relative">
+      <DatePicker
+        ref={datePickerRef}
+        value={initialValue}
+        onChange={handleDateChange}
+        calendar={config.calendar}
+        locale={config.locale}
+        format={language.code === 'fa' ? 'YYYY/MM/DD' : 'YYYY-MM-DD'}
+        onlyShowInRangeDates={false}
+        render={(value, openCalendar) => {
+          return (
+            <button
+              type="button"
+              onClick={openCalendar}
+              className="flex items-center space-x-2 rtl:space-x-reverse px-4 py-2 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 w-full text-left rtl:text-right"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="text-sm">
+                {value || placeholder}
+              </span>
+            </button>
+          );
+        }}
+        containerStyle={{
+          position: 'relative',
+          zIndex: 10000
+        }}
+        calendarPosition="bottom-left"
       />
     </div>
   );

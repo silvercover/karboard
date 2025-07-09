@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MessageCircle, Send, Edit, Trash2, Reply } from 'lucide-react';
 import { Comment } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useAuth } from '../contexts/AuthContext';
+import { loadUserAvatar } from '../utils/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { formatJalaliDate } from '../utils/jalali';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -14,7 +15,7 @@ interface CommentsProps {
 
 export function Comments({ comments, onCommentsChange }: CommentsProps) {
   const { t, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, userAvatar } = useAuth();
   const [newComment, setNewComment] = useState('');
   const [editingComment, setEditingComment] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
@@ -22,6 +23,39 @@ export function Comments({ comments, onCommentsChange }: CommentsProps) {
   const [replyText, setReplyText] = useState('');
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [userAvatars, setUserAvatars] = useState<{ [userId: string]: string }>({});
+
+  // Load avatars for comment users
+  useEffect(() => {
+    const loadAvatars = async () => {
+      const uniqueUserIds = [...new Set(comments.map(c => c.userId))];
+      const avatarPromises = uniqueUserIds.map(async (userId) => {
+        if (userId === user?.id) {
+          return { userId, avatar: userAvatar };
+        }
+        try {
+          const avatar = await loadUserAvatar(userId);
+          return { userId, avatar };
+        } catch (error) {
+          console.error('Failed to load avatar for user:', userId, error);
+          return { userId, avatar: null };
+        }
+      });
+
+      const avatarResults = await Promise.all(avatarPromises);
+      const avatarMap: { [userId: string]: string } = {};
+      avatarResults.forEach(({ userId, avatar }) => {
+        if (avatar) {
+          avatarMap[userId] = avatar;
+        }
+      });
+      setUserAvatars(avatarMap);
+    };
+
+    if (comments.length > 0) {
+      loadAvatars();
+    }
+  }, [comments, user?.id, userAvatar]);
 
   // Organize comments by parent-child relationship
   const organizeComments = (comments: Comment[]) => {
@@ -52,7 +86,7 @@ export function Comments({ comments, onCommentsChange }: CommentsProps) {
       id: uuidv4(),
       userId: user.id,
       userName: user.name,
-      userAvatar: user.avatar,
+      userAvatarRef: user.avatarRef,
       text: text.trim(),
       parentId,
       createdAt: new Date(),
@@ -146,13 +180,14 @@ export function Comments({ comments, onCommentsChange }: CommentsProps) {
   const renderComment = (comment: Comment, level = 0) => {
     const commentReplies = replies[comment.id] || [];
     const indentClass = level === 0 ? '' : level === 1 ? 'ml-8 rtl:mr-8 rtl:ml-0' : 'ml-16 rtl:mr-16 rtl:ml-0';
+    const avatar = userAvatars[comment.userId];
 
     return (
       <div key={comment.id} className={`space-y-3 ${indentClass}`}>
         <div className="flex space-x-3 rtl:space-x-reverse">
-          {comment.userAvatar ? (
+          {avatar ? (
             <img
-              src={comment.userAvatar}
+              src={avatar}
               alt="Profile"
               className="w-8 h-8 rounded-full object-cover flex-shrink-0"
             />
@@ -239,9 +274,9 @@ export function Comments({ comments, onCommentsChange }: CommentsProps) {
             {/* Reply form */}
             {replyingTo === comment.id && (
               <div className="mt-3 flex space-x-3 rtl:space-x-reverse">
-                {user?.avatar ? (
+                {userAvatar ? (
                   <img
-                    src={user.avatar}
+                    src={userAvatar}
                     alt="Profile"
                     className="w-6 h-6 rounded-full object-cover flex-shrink-0"
                   />
@@ -300,9 +335,9 @@ export function Comments({ comments, onCommentsChange }: CommentsProps) {
 
       {/* Add new comment */}
       <div className="flex space-x-3 rtl:space-x-reverse">
-        {user?.avatar ? (
+        {userAvatar ? (
           <img
-            src={user.avatar}
+            src={userAvatar}
             alt="Profile"
             className="w-8 h-8 rounded-full object-cover flex-shrink-0"
           />

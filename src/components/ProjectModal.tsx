@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Globe, Lock } from 'lucide-react';
 import { useProject } from '../contexts/ProjectContext';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -6,14 +6,29 @@ import { useLanguage } from '../contexts/LanguageContext';
 interface ProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
+  editingProject?: any;
 }
 
-export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
+export function ProjectModal({ isOpen, onClose, editingProject }: ProjectModalProps) {
   const { t } = useLanguage();
-  const { createProject, setCurrentProject } = useProject();
+  const { createProject, setCurrentProject, updateProject } = useProject();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isPublic, setIsPublic] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      if (editingProject) {
+        setTitle(editingProject.title);
+        setDescription(editingProject.description || '');
+        setIsPublic(editingProject.isPublic);
+      } else {
+        setTitle('');
+        setDescription('');
+        setIsPublic(false);
+      }
+    }
+  }, [isOpen, editingProject]);
 
   if (!isOpen) return null;
 
@@ -21,8 +36,18 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const newProject = createProject(title.trim(), description.trim() || undefined, isPublic);
-    setCurrentProject(newProject);
+    if (editingProject) {
+      // Update existing project
+      updateProject(editingProject.id, {
+        title: title.trim(),
+        description: description.trim() || undefined,
+        isPublic
+      });
+    } else {
+      // Create new project
+      const newProject = createProject(title.trim(), description.trim() || undefined, isPublic);
+      setCurrentProject(newProject);
+    }
     
     setTitle('');
     setDescription('');
@@ -31,11 +56,11 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[10000] p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto mx-auto my-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-800">
-            {t('project.create')}
+            {editingProject ? t('project.edit') : t('project.create')}
           </h2>
           <button
             onClick={onClose}
@@ -123,7 +148,7 @@ export function ProjectModal({ isOpen, onClose }: ProjectModalProps) {
               disabled={!title.trim()}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {t('create')}
+              {editingProject ? t('save') : t('create')}
             </button>
           </div>
         </form>

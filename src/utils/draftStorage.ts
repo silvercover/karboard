@@ -55,6 +55,11 @@ export function hasDraft(cardId: string): boolean {
   return localStorage.getItem(`${DRAFT_PREFIX}${cardId}`) !== null;
 }
 
+// Generate unique card ID for new cards
+export function generateNewCardId(): string {
+  return `new-card-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 // Clean up old drafts (older than 7 days)
 export function cleanupOldDrafts(): void {
   try {
